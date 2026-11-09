@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geolocation Dashboard | Практична робота (Варіант 6)</title>
+  
+  <!-- Шрифти Google Fonts та Іконки Font Awesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet CSS -->
+  <link 
+    rel="stylesheet" 
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin="" 
+  />
+
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --secondary: #06b6d4;
+      --accent: #f59e0b;
+      --danger: #ef4444;
+      --success: #10b981;
+      --bg-dark: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.75);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(circle at top right, #1e1b4b, #0f172a 60%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Шапка профілю */
+    header {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .header-title { display: flex; align-items: center; gap: 16px; }
+    .header-title i {
+      font-size: 2rem; color: var(--secondary);
+      background: rgba(6, 182, 212, 0.15); padding: 12px; border-radius: 12px;
+    }
+    .header-title h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+    .header-title p { font-size: 0.875rem; color: var(--text-muted); }
+
+    .status-badge {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(16, 185, 129, 0.15); color: var(--success);
+      padding: 8px 16px; border-radius: 999px;
+      font-size: 0.85rem; font-weight: 600;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px; background-color: var(--success); border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* Макет сітки */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 24px;
+      flex: 1;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+    }
+
+    .card-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px; border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+    .card-header i { color: var(--secondary); }
+    .card-header h2 { font-size: 1.1rem; font-weight: 600; }
+
+    /* Кнопки */
+    .btn-group { display: flex; gap: 12px; }
+
+    .btn {
+      flex: 1; display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px; padding: 12px 16px; border-radius: 10px;
+      font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6); }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15); color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+
+    .btn-accent {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff; width: 100%; margin-top: 10px;
+    }
+    .btn-accent:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4); }
+
+    /* Метрики */
+    .metrics-list { display: flex; flex-direction: column; gap: 14px; }
+
+    .metric-item {
+      background: rgba(15, 23, 42, 0.5); padding: 14px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .metric-label {
+      font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--text-muted); margin-bottom: 4px;
+    }
+
+    .metric-value { font-size: 1rem; font-weight: 600; color: #fff; word-break: break-all; }
+    .metric-value.highlight { color: var(--secondary); }
+    .metric-value.accent { color: var(--accent); }
+
+    /* Поля введення */
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .form-group label { font-size: 0.85rem; color: var(--text-muted); }
+    .form-control {
+      background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color);
+      color: #fff; padding: 10px 14px; border-radius: 8px;
+      font-family: inherit; font-size: 0.9rem; outline: none; transition: border-color 0.2s;
+    }
+    .form-control:focus { border-color: var(--secondary); }
+
+    /* Контейнер карти */
+    .main-content { display: flex; flex-direction: column; gap: 20px; }
+    #map {
+      width: 100%; height: 480px; border-radius: 16px;
+      border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1;
+    }
+
+    /* Журнал логів */
+    .logs-card { max-height: 200px; overflow-y: auto; }
+    .log-item {
+      font-size: 0.825rem; padding: 8px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex; justify-content: space-between; color: var(--text-muted);
+    }
+    .log-item:last-child { border-bottom: none; }
+    .log-time { color: var(--secondary); font-weight: 500; }
+
+    /* Кастомізація вспливаючих вікон (Leaflet Popups) */
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+      background: #1e293b !important; color: #f8fafc !important;
+      border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+      border-radius: 12px !important;
+    }
+    .leaflet-popup-content { margin: 12px 16px !important; line-height: 1.5 !important; font-size: 0.875rem !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Хедер -->
+  <header>
+    <div class="header-title">
+      <i class="fa-solid fa-location-crosshairs"></i>
+      <div>
+        <h1>Геолокаційний Монітор</h1>
+        <p>Практична робота • Варіант 6 • API Geolocation & Leaflet.js</p>
+      </div>
+    </div>
+    <div class="status-badge" id="statusBadge">
+      <span class="status-dot"></span>
+      <span id="statusText">Готово до роботи</span>
+    </div>
+  </header>
+
+  <div class="dashboard-grid">
+
+    <!-- Бічна панель -->
+    <aside class="sidebar">
+
+      <!-- Частина 2: Керування відстеженням -->
+      <div class="card">
+        <div class="card-header">
+          <i class="fa-solid fa-satellite-dish"></i>
+          <h2>Керування Трекінгом (Частина 2)</h2>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="watch">
+            <i class="fa-solid fa-play"></i> Watch me
+          </button>
+          <button class="btn btn-danger" id="clearWatch">
+            <i class="fa-solid fa-stop"></i> Clear watch
+          </button>
+        </div>
+      </div>
+
+      <!-- Частина 1: Метрики та Відстань -->
+      <div class="card">
+        <div class="card-header">
+          <i class="fa-solid fa-compass"></i>
+          <h2>Поточні Монітори (Частина 1)</h2>
+        </div>
+        <div class="metrics-list">
+          <div class="metric-item">
+            <div class="metric-label">Ваші Координати</div>
+            <div class="metric-value highlight" id="location">Визначається...</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Точність сигналу</div>
+            <div class="metric-value" id="accuracy">-- м</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Відстань до Коледжу</div>
+            <div class="metric-value accent" id="distance">Обчислення...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Індивідуальне завдання (Варіант 6) -->
+      <div class="card">
+        <div class="card-header">
+          <i class="fa-solid fa-route"></i>
+          <h2>Пункт Призначення (В-6)</h2>
+        </div>
+        <div class="form-group">
+          <label for="destLat">Широта (Latitude)</label>
+          <input type="number" id="destLat" class="form-control" step="any" placeholder="48.94321">
+        </div>
+        <div class="form-group">
+          <label for="destLng">Довгота (Longitude)</label>
+          <input type="number" id="destLng" class="form-control" step="any" placeholder="24.73380">
+        </div>
+        <button class="btn btn-accent" id="scrollToDest">
+          <i class="fa-solid fa-plane-departure"></i> Проскролити до призначення
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- Основний блок: Карта та Журнал -->
+    <main class="main-content">
+      <div id="map"></div>
+
+      <div class="card logs-card">
+        <div class="card-header">
+          <i class="fa-solid fa-list-check"></i>
+          <h2>Журнал Подій та Маркерів</h2>
+        </div>
+        <div id="logsContainer">
+          <div class="log-item">
+            <span>Систему ініціалізовано. Очікування запиту геолокації...</span>
+            <span class="log-time">System</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Підключення бібліотеки Leaflet JS та основного скрипту -->
+  <script 
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin="">
+  </script>
+  <script src="myLoc.js"></script>
+
+</body>
+</html>
